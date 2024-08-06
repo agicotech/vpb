@@ -3,10 +3,10 @@ Description= Vpn Backend
 
 [Service]
 User=root
-WorkingDirectory=/root/
-VIRTUAL_ENV=/root/env
+WorkingDirectory=/root/vpb/data
+VIRTUAL_ENV=/root/vpb/venv
 Environment=PATH=$VIRTUAL_ENV/bin:$PATH
-ExecStart=/root/env/bin/python test_server.py
+ExecStart=/root/vpb/venv/python test_server.py
 Restart=always
 RestartSec=5
 RuntimeMaxSec=5d

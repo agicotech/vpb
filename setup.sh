@@ -19,6 +19,8 @@ iptables-save > /etc/iptables.rules
 
 wget -qO- https://raw.githubusercontent.com/Jigsaw-Code/outline-server/master/src/server_manager/install_scripts/install_server.sh | bash
 
+chmod u+x *.sh
+
 cd vpb
 apt-get -y install python3.11 python3-pip python3.11-venv lrzsz
 python3.11 -m venv venv

@@ -63,7 +63,7 @@ class IKEv2(VPN_Proto):
         }
         #TODO: вот сюда надо переписать функцию ниже, логин должен иметь длину 8, пароль - 12
         cls.save_user(user)
-        os.system(f'echo \'{username}\n{password}\ny\' | ../add_vpn_user.sh ')
+        os.system(f'echo \'{username}\n{password}\ny\' | ./add_vpn_user.sh ')
         return user
     @classmethod
     def get_confs(cls) -> dict:
@@ -76,7 +76,7 @@ class IKEv2(VPN_Proto):
     @classmethod
     def remove_key(cls, key_id: str):
         if cls.clients.pop(key_id, None) is not None:
-            os.system(f'echo \'{key_id}\ny\' | ../del_vpn_user.sh ')
+            os.system(f'echo \'{key_id}\ny\' | ./del_vpn_user.sh ')
             cls.clients.save()
             return True
         else:
@@ -158,7 +158,7 @@ class WireGuard(VPN_Proto):
     @classmethod
     def generate_conf(cls, expire_date: int = 0, max_clients: int = 5) -> dict:
         key_id = randomstr(10, with_special = False)
-        os.system(f'echo \'1\n{key_id}\n2\nN\n\' | ../wireguard.sh ')
+        os.system(f'echo \'1\n{key_id}\n2\nN\n\' | ./wireguard.sh ')
         user = {
             "_key_id": key_id,
             "_exp": expire_date
@@ -170,11 +170,11 @@ class WireGuard(VPN_Proto):
     def remove_key(cls, key_id: str):
         if cls.clients.pop(key_id, None) is not None:
             try:
-                id_out = subprocess.check_output(f"echo '2' | ../wireguard.sh | grep '{key_id}' | cut -d')' -f1", shell=True)
+                id_out = subprocess.check_output(f"echo '2' | ./wireguard.sh | grep '{key_id}' | cut -d')' -f1", shell=True)
             except subprocess.CalledProcessError as e:
                 id_out = e.output
             if id_out != b'':
-                os.system(f"echo  \'3\n{int(id_out)}\ny\' | ../wireguard.sh ")
+                os.system(f"echo  \'3\n{int(id_out)}\ny\' | ./wireguard.sh ")
                 cls.clients.pop(key_id)
                 cls.clients.save()
                 try: os.remove(f'{key_id}.ovpn')
@@ -200,7 +200,7 @@ class OpenVPN(WireGuard):
     def generate_conf(cls, expire_date: int = 0, max_clients: int = 5) -> dict:
         key_id = randomstr(10, with_special = False)
 
-        os.system(f'echo \'1\n{key_id}\n\' | ../openvpn.sh ')
+        os.system(f'echo \'1\n{key_id}\n\' | ./openvpn.sh ')
         with open(f'{key_id}.ovpn', 'rb') as f:
             fcontent = f.read().decode('utf-8', errors='ignore')
         user = {
@@ -214,11 +214,11 @@ class OpenVPN(WireGuard):
     def remove_key(cls, key_id: str):
         if cls.clients.pop(key_id, None) is not None:
             try:
-                id_out = subprocess.check_output(f"echo '3' | ../openvpn.sh | grep '{key_id}' | cut -d')' -f1", shell=True)
+                id_out = subprocess.check_output(f"echo '3' | ./openvpn.sh | grep '{key_id}' | cut -d')' -f1", shell=True)
             except subprocess.CalledProcessError as e:
                 id_out = e.output
             if id_out != b'':
-                os.system(f"echo  \'4\n{int(id_out)}\ny\n\' | ../openvpn.sh ")
+                os.system(f"echo  \'4\n{int(id_out)}\ny\n\' | ./openvpn.sh ")
                 cls.clients.pop(key_id)
                 cls.clients.save()
                 try: os.remove(f'{key_id}.ovpn')

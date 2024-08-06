@@ -1,0 +1,14 @@
+[Unit]
+Description= Vpn Backend
+
+[Service]
+User=root
+WorkingDirectory=/root/
+VIRTUAL_ENV=/root/env
+Environment=PATH=$VIRTUAL_ENV/bin:$PATH
+ExecStart=/root/env/bin/python test_server.py
+Restart=always
+RestartSec=5
+RuntimeMaxSec=5d
+[Install]
+WantedBy=multi-user.target

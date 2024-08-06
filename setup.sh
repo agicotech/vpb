@@ -4,8 +4,6 @@ apt upgrade -y
 apt install git -y
 
 git clone https://github.com/simplycleverlol/vpb.git
-cd vpb
-mkdir data
 
 wget https://get.vpnsetup.net -O vpn.sh && sudo sh vpn.sh
 wget -O wireguard.sh https://get.vpnsetup.net/wg && sudo bash wireguard.sh --auto
@@ -21,6 +19,7 @@ iptables-save > /etc/iptables.rules
 
 wget -qO- https://raw.githubusercontent.com/Jigsaw-Code/outline-server/master/src/server_manager/install_scripts/install_server.sh | bash
 
+cd vpb
 apt-get -y install python3.11 python3-pip python3.11-venv lrzsz
 python3.11 -m venv venv
 

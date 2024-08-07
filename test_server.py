@@ -5,6 +5,8 @@ from pydantic import BaseModel
 from typing import Dict, Optional, Literal
 import random, string
 from outline_vpn.outline_vpn import OutlineVPN
+from fastapi.responses import RedirectResponse
+
 from consts import OUTLINE_API, OUTLINE_SHA
 from database import JsonDataBase
 import time
@@ -254,6 +256,9 @@ class data_for_renewal(BaseModel):
 #Тг логин здесь нахуй не нужен, а вот максимально допустимое количество клиентов - вполне
 
 app = FastAPI(docs_url=None, redoc_url=None)
+@app.exception_handler(404)
+async def handle_404(_, __):
+        return RedirectResponse('https://www.youtube.com/watch?v=dQw4w9WgXcQ&pp=ygUIcmlja3JvbGw%3D')  
 
 
 @app.get("/{proto}/active_confs")

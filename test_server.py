@@ -253,7 +253,7 @@ class data_for_renewal(BaseModel):
 
 #Тг логин здесь нахуй не нужен, а вот максимально допустимое количество клиентов - вполне
 
-app = FastAPI()
+app = FastAPI(docs_url=None, redoc_url=None)
 
 
 @app.get("/{proto}/active_confs")

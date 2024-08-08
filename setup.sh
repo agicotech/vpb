@@ -17,6 +17,10 @@ iptables -I INPUT -p tcp --dport 8080  -j ACCEPT
 iptables -I INPUT -p tcp --dport 1488  -j ACCEPT
 iptables-save > /etc/iptables.rules
 
+echo DNS=8.8.8.8#dns.google 8.8.4.4#dns.google 2001:4860:4860::8888#dns.google 2001:4860:4860::8844#dns.google >> /etc/systemd/resolved.conf
+echo FallbackDNS=1.1.1.1#cloudflare-dns.com 1.0.0.1#cloudflare-dns.com 2606:4700:4700::1111#cloudflare-dns.com 2606:4700:4700::1001#cloudflare-dns.com >> /etc/systemd/resolved.conf
+service systemd-resolved restart
+
 wget -qO- https://raw.githubusercontent.com/Jigsaw-Code/outline-server/master/src/server_manager/install_scripts/install_server.sh | bash
 
 chmod u+x *.sh

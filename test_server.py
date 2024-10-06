@@ -6,8 +6,9 @@ from typing import Dict, Optional, Literal
 import random, string
 from outline_vpn.outline_vpn import OutlineVPN
 from fastapi.responses import RedirectResponse
+import requests
 
-from consts import OUTLINE_API, OUTLINE_SHA
+from consts import OUTLINE_API, OUTLINE_SHA, VLESS_LINK, VLESS_USERNAME, VLESS_PASSWORD
 from database import JsonDataBase
 import time
 import os, subprocess
@@ -84,8 +85,53 @@ class IKEv2(VPN_Proto):
         else:
             return False
     
+# NEW HERE  NEW HERE  NEW HERE  NEW HERE  NEW HERE  NEW HERE  NEW HERE  NEW HERE  NEW HERE  NEW HERE 
+class VLESS(VPN_Proto):
+    clients = JsonDataBase('db_clients_VLESS')
+    clients.load()
+
+    @classmethod
+    def login(cls): #возвращает куки на час с авторизаией, их надо хранить либо в классе либо в дб
+        payload = {
+            "username": VLESS_USERNAME,
+            "password": VLESS_PASSWORD
+        }
+        login = requests.post(f'http://localhost:60000{VLESS_LINK}login', json = payload) # вот этот реквест нормально сделан, выдает что надо в 100% случаев
+
+    @classmethod
+    def save_user(cls, user: dict): # не трогал с аутлайна
+        cls.clients[user['_key_id']] = user 
+        cls.clients.save()
 
 
+    @classmethod
+    def generate_conf(cls, expire_date: int = 0, max_clients: int = 5) -> dict:
+        cls.login()
+        key_id = randomstr(10, with_special = False)
+        payload = {
+        "id": 2,
+        "settings": "{\"clients\":[{\"id\":\"95e4e7bb-7796-47e7-e8a7-f4055194f776\",\"alterId\":0,\"email\":\"newvlient\",\"limitIp\":2,\"totalGB\":42949672960,\"expiryTime\":1682864675944,\"enable\":true,\"tgId\":\"\",\"subId\":\"\"}]}"
+        }
+        # пейлоуд такой ебнутый потому что апи влесса написан на ГО версии idi_nahui,
+        # которая нормально не обрабатывает ебаные списки или чето что в конкретно 
+        # этих списках. Самое простое решение - ебнуть f string, хоть и не красиво
+        # параметры сами за себя говорят, тут не ошибешься, моя идея - за id и email брать 
+        # key_id, остальное все норм. Ну и офк пост запрос я не успел реализовать
+        # ну и по структуре: внешний айди это айди группы, внутренний - айди конкретного юзера
+        key = cls.outline.create_key(key_id=key_id, name=key_id)
+        token = f'{key.access_url}#{BOT_NAME}'
+        # а вот тут после создания клиента ждет подляночка
+        # чтобы получить доступ к впн нужна ссылка-ключ, которую можно достать
+        # ТОЛЬКО гет запростом по айди клиента и подключения 
+        user = {
+            "token": token,
+            "_key_id": key_id,
+            "_exp": expire_date
+        }
+        cls.save_user(user)
+        return user
+
+# NEW HERE  NEW HERE  NEW HERE  NEW HERE  NEW HERE  NEW HERE  NEW HERE  NEW HERE  NEW HERE  NEW HERE 
 
 #TODO: Логин и пароль должны генерироваться в виде !!!случайной строки из символов
 # Принимать надо не промежуток в днях, а непосредственную отметку времени, на которой пользователь умирает
@@ -297,5 +343,6 @@ def revoke_link(proto: proto_literal, removal_info: key_for_removal):
     return Protos[protocol].remove_key(key_id)
 
 if __name__ == '__main__':
+    print('ss')
     uvicorn.run(app, host="0.0.0.0", port=1488, loop='none')
     # print(Outline_VPN.generate_conf(expire_date=100, max_clients=1))

@@ -1,3 +1,4 @@
+#!/bin/bash
 add-apt-repository ppa:deadsnakes/ppa -y
 apt update
 apt upgrade -y
@@ -22,6 +23,42 @@ echo FallbackDNS=1.1.1.1#cloudflare-dns.com 1.0.0.1#cloudflare-dns.com 2606:4700
 service systemd-resolved restart
 
 wget -qO- https://raw.githubusercontent.com/Jigsaw-Code/outline-server/master/src/server_manager/install_scripts/install_server.sh | bash
+
+git clone https://github.com/MHSanaei/3x-ui.git
+cd 3x-ui
+docker compose up -d 
+# Захерачиваем контейнер с 3x-ui, там дефолтный логин пароль admin admin
+
+sleep 5
+
+# Времячко на раздуплиться
+
+curl --cookie-jar tempcookies.txt --form password=admin --form username=admin http://localhost:2053/login
+
+# Кладем в баночку печеньку
+
+VLESSPWD=$(openssl rand -base64 33)
+
+# Ohuenno difficult parol'
+
+curl 'http://localhost:2053/panel/setting/updateUser'\
+    -b tempcookies.txt \
+    --form password=admin \
+    --form username=admin \
+    --form loginSecret= \
+    --form oldUsername=admin \
+    --form oldPassword=admin \
+    --form newUsername=admin \
+    --form newPassword=$VLESSPWD
+
+# Меняем пароль
+
+rm tempcookies.txt
+# Куки нахуй
+cd ..
+
+echo XUI_PASSWORD="$VLESSPWD" >> .env
+# Перешел с decouple на dotenv - так проще и более распространенное решение
 
 chmod u+x *.sh
 

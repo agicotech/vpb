@@ -6,20 +6,27 @@ from typing import Dict, Optional, Literal
 import random, string
 from outline_vpn.outline_vpn import OutlineVPN
 from fastapi.responses import RedirectResponse
-import requests
+import hashlib
+import uuid
 
-from consts import OUTLINE_API, OUTLINE_SHA, VLESS_LINK, VLESS_USERNAME, VLESS_PASSWORD
+from py3xui import Api as Api3x, Client as Client3x
+from inbound_generator import gen_inbound_reality
+
+
+from consts import *
 from database import JsonDataBase
 import time
 import os, subprocess
+from requests import get
 
+MACHINE_IP = get('https://api.ipify.org').content.decode('utf8')
 BOT_NAME = '@agicovpnbot'
 
 def randomstr(length, with_special = True):
    letters = string.ascii_letters + string.digits + ('_!.@' if with_special else '')
    return ''.join(random.choice(letters) for _ in range(length))
 
-Available_Protos = {"IKEv2", 'Outline', 'WireGuard', 'OpenVPN'} #TODO: Сделать автоматический поиск установленных протоколов
+Available_Protos = {"IKEv2", 'Outline', 'WireGuard', 'OpenVPN', 'VLESS'} #TODO: Сделать автоматический поиск установленных протоколов
 # здесь допишем автоматическое определение установленных на сервере протоколов как-нибудь потом
 
 class VPN_Proto():
@@ -89,40 +96,40 @@ class IKEv2(VPN_Proto):
 class VLESS(VPN_Proto):
     clients = JsonDataBase('db_clients_VLESS')
     clients.load()
+    api = Api3x(XUI_HOST, XUI_USERNAME, XUI_PASSWORD) 
+    _active_inbound_id = None
+    # Это не я придумал писать хуй - это так в офф примерах к py3xui
 
     @classmethod
-    def login(cls): #возвращает куки на час с авторизаией, их надо хранить либо в классе либо в дб
-        payload = {
-            "username": VLESS_USERNAME,
-            "password": VLESS_PASSWORD
-        }
-        login = requests.post(f'http://localhost:60000{VLESS_LINK}login', json = payload) # вот этот реквест нормально сделан, выдает что надо в 100% случаев
-
-    @classmethod
-    def save_user(cls, user: dict): # не трогал с аутлайна
-        cls.clients[user['_key_id']] = user 
-        cls.clients.save()
+    def activeinboundid(cls):
+        if cls._active_inbound_id is not None:
+            # здесь бы еще проверочку на работоспособность замутить
+            return cls._active_inbound_id
+        cls.api.login()
+        available_inbounds = cls.api.inbound.get_list()
+        if len(available_inbounds) == 0:           
+            inbound = gen_inbound_reality(XUI_HOST, cls.api.session)
+            cls.api.inbound.add(inbound=inbound)
+            available_inbounds = cls.api.inbound.get_list()
+        cls._active_inbound_id = available_inbounds[0].id
+        return cls._active_inbound_id
 
 
     @classmethod
     def generate_conf(cls, expire_date: int = 0, max_clients: int = 5) -> dict:
-        cls.login()
         key_id = randomstr(10, with_special = False)
-        payload = {
-        "id": 2,
-        "settings": "{\"clients\":[{\"id\":\"95e4e7bb-7796-47e7-e8a7-f4055194f776\",\"alterId\":0,\"email\":\"newvlient\",\"limitIp\":2,\"totalGB\":42949672960,\"expiryTime\":1682864675944,\"enable\":true,\"tgId\":\"\",\"subId\":\"\"}]}"
-        }
-        # пейлоуд такой ебнутый потому что апи влесса написан на ГО версии idi_nahui,
-        # которая нормально не обрабатывает ебаные списки или чето что в конкретно 
-        # этих списках. Самое простое решение - ебнуть f string, хоть и не красиво
-        # параметры сами за себя говорят, тут не ошибешься, моя идея - за id и email брать 
-        # key_id, остальное все норм. Ну и офк пост запрос я не успел реализовать
-        # ну и по структуре: внешний айди это айди группы, внутренний - айди конкретного юзера
-        key = cls.outline.create_key(key_id=key_id, name=key_id)
-        token = f'{key.access_url}#{BOT_NAME}'
-        # а вот тут после создания клиента ждет подляночка
-        # чтобы получить доступ к впн нужна ссылка-ключ, которую можно достать
-        # ТОЛЬКО гет запростом по айди клиента и подключения 
+        # Надо сгенерировать какой-нибудь id клиенту, чтоб мы не выглядели как ебланы, отдавая юзерам наши внутренние key_id
+        # Поэтому ща хэшей насчитаем бля
+        seed = hashlib.sha256(key_id.encode('utf-8')).hexdigest()[:32]
+        user_id = str(uuid.UUID(seed, version=1))
+        client = Client3x(
+            email=key_id.lower(), # требование апи
+            enable=True,
+            id=user_id,
+            subId=key_id
+        )
+        resp = cls.api.client.add(cls.activeinboundid(), [client])
+        token = f'vless://{user_id}@{MACHINE_IP}:4430?type=tcp&security=reality&pbk=&fp=random&sni=yahoo.com&sid=38&spx=%2F#{BOT_NAME}'
         user = {
             "token": token,
             "_key_id": key_id,
@@ -130,14 +137,30 @@ class VLESS(VPN_Proto):
         }
         cls.save_user(user)
         return user
+    
+    @classmethod
+    def remove_key(cls, key_id: str):
+        if cls.clients.pop(key_id, None) is not None:
+            seed = hashlib.sha256(key_id.encode('utf-8')).hexdigest()[:32]
+            user_id = str(uuid.UUID(seed, version=1))
+            cls.api.client.delete(cls.activeinboundid(), user_id)
+            cls.clients.save()
+            return True
+        else:
+            return False
+    @classmethod
+    def get_confs(cls) -> dict:
+        names = list(cls.clients.keys())
+        for name in names:
+            client_exp = int(cls.clients[name]['_exp'])
+            if not(client_exp > time.time() or client_exp == 0):
+                cls.clients.pop(name, None)
+        return cls.clients.data
+
+
 
 # NEW HERE  NEW HERE  NEW HERE  NEW HERE  NEW HERE  NEW HERE  NEW HERE  NEW HERE  NEW HERE  NEW HERE 
 
-#TODO: Логин и пароль должны генерироваться в виде !!!случайной строки из символов
-# Принимать надо не промежуток в днях, а непосредственную отметку времени, на которой пользователь умирает
-# Возвращать этот промежуток не надо
-# Функция должна быть привязана к алгоритму, так как у разных алгоритмов разные поля 
-# (далеко не всегда только логин и пароль)
 
 '''client = clients.touch(user.id, 
                   full_name = user.full_name,
@@ -151,11 +174,6 @@ class Outline(VPN_Proto):
     outline = OutlineVPN(api_url=OUTLINE_API, cert_sha256=OUTLINE_SHA)
     clients = JsonDataBase('db_clients_Outline')
     clients.load()
-
-    @classmethod
-    def save_user(cls, user: dict):
-        cls.clients[user['_key_id']] = user
-        cls.clients.save()
 
 
     @classmethod
@@ -196,12 +214,6 @@ def file_attachment(filename):
 class WireGuard(VPN_Proto):
     clients = JsonDataBase('db_clients_WireGuard')
     clients.load()
-
-    @classmethod
-    def save_user(cls, user: dict):
-        cls.clients[user['_key_id']] = user
-        cls.clients.save()
-
 
     @classmethod
     def generate_conf(cls, expire_date: int = 0, max_clients: int = 5) -> dict:
@@ -277,8 +289,8 @@ class OpenVPN(WireGuard):
             return False
 
 
-Protos: Dict[str, VPN_Proto] = {"IKEv2" : IKEv2, "Outline": Outline, 'WireGuard': WireGuard, 'OpenVPN': OpenVPN}
-proto_literal = Literal["IKEv2", "Outline", 'WireGuard', 'OpenVPN']
+Protos: Dict[str, VPN_Proto] = {"IKEv2" : IKEv2, "Outline": Outline, 'WireGuard': WireGuard, 'OpenVPN': OpenVPN, "VLESS": VLESS}
+proto_literal = Literal["IKEv2", "Outline", 'WireGuard', 'OpenVPN', 'VLESS']
 
 class new_user(BaseModel):
     """Класс для работы пост запроса создания нового пользователя"""
@@ -301,7 +313,10 @@ class data_for_renewal(BaseModel):
 
 #Тг логин здесь нахуй не нужен, а вот максимально допустимое количество клиентов - вполне
 
-app = FastAPI(docs_url=None, redoc_url=None)
+#
+# app = FastAPI(docs_url=None, redoc_url=None)
+app = FastAPI()
+
 @app.exception_handler(404)
 async def handle_404(_, __):
         return RedirectResponse('https://www.youtube.com/watch?v=dQw4w9WgXcQ&pp=ygUIcmlja3JvbGw%3D')  

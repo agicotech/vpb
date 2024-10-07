@@ -1,7 +1,11 @@
 import json, logging, re, os
-from decouple import config
+from dotenv import load_dotenv
 from collections import Counter
 from database import JsonDataBase
+
+load_dotenv()
+
+config = lambda key, default=None : os.getenv(key, default)
 
 if os.path.exists('/opt/outline/access.txt'):
     data = {}
@@ -17,6 +21,6 @@ else:
     OUTLINE_API = config('OUTLINE_API', default = '')
     OUTLINE_SHA = config('OUTLINE_SHA', default = '')
 
-VLESS_LINK = config('VLESS_LINK', default = '')
-VLESS_USERNAME = config('VLESS_USERNAME', default = '', cast = str)
-VLESS_PASSWORD = config('VLESS_PASSWORD', default = '', cast = str).replace('__', '%') # без ебатории с реплейсом ошибка, не хотел себе ебать мозги как и почему, скорее всего выебоны питона
+XUI_USERNAME = config('XUI_USERNAME', default = 'admin')
+XUI_PASSWORD = config('XUI_PASSWORD', default = 'admin')
+XUI_HOST = config('XUI_HOST', 'http://localhost:2053')

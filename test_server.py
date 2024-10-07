@@ -173,7 +173,10 @@ class VLESS(VPN_Proto):
         if cls.clients.pop(key_id, None) is not None:
             seed = hashlib.sha256(key_id.encode('utf-8')).hexdigest()[:32]
             user_id = str(uuid.UUID(seed, version=1))
-            cls.api.client.delete(cls.activeinboundid(), user_id)
+            try:
+                cls.api.client.delete(cls._activeinbound().id, user_id)
+            except:
+                logger.warning(f'Error while deleting {key_id} from api')
             cls.clients.save()
             return True
         else:

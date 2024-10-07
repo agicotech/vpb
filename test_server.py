@@ -3,13 +3,14 @@ from fastapi import FastAPI
 import uvicorn
 from pydantic import BaseModel
 from typing import Dict, Optional, Literal
-import random, string
+import random
 from outline_vpn.outline_vpn import OutlineVPN
 from fastapi.responses import RedirectResponse
 import hashlib
 import uuid
 
 from py3xui import Api as Api3x, Client as Client3x
+from py3xui import Inbound
 from inbound_generator import gen_inbound_reality
 
 
@@ -18,13 +19,14 @@ from database import JsonDataBase
 import time
 import os, subprocess
 from requests import get
+from urllib.parse import urlencode
+from utils import *
 
-MACHINE_IP = get('https://api.ipify.org').content.decode('utf8')
-BOT_NAME = '@agicovpnbot'
+MACHINE_IP = my_ip()
+BOT_NAME = '@agicovpnbot '+ get_flag(MACHINE_IP)
 
-def randomstr(length, with_special = True):
-   letters = string.ascii_letters + string.digits + ('_!.@' if with_special else '')
-   return ''.join(random.choice(letters) for _ in range(length))
+logger = logging.getLogger()
+logger.setLevel(20)
 
 Available_Protos = {"IKEv2", 'Outline', 'WireGuard', 'OpenVPN', 'VLESS'} #TODO: Сделать автоматический поиск установленных протоколов
 # здесь допишем автоматическое определение установленных на сервере протоколов как-нибудь потом
@@ -96,23 +98,44 @@ class IKEv2(VPN_Proto):
 class VLESS(VPN_Proto):
     clients = JsonDataBase('db_clients_VLESS')
     clients.load()
-    api = Api3x(XUI_HOST, XUI_USERNAME, XUI_PASSWORD) 
-    _active_inbound_id = None
+    api = Api3x(XUI_HOST, XUI_USERNAME, XUI_PASSWORD, logger=logger) 
+    _active_inbound = None
     # Это не я придумал писать хуй - это так в офф примерах к py3xui
 
     @classmethod
-    def activeinboundid(cls):
-        if cls._active_inbound_id is not None:
+    def _activeinbound(cls) -> Inbound:
+        if cls._active_inbound is not None:
             # здесь бы еще проверочку на работоспособность замутить
-            return cls._active_inbound_id
+            return cls._active_inbound
         cls.api.login()
         available_inbounds = cls.api.inbound.get_list()
         if len(available_inbounds) == 0:           
-            inbound = gen_inbound_reality(XUI_HOST, cls.api.session)
+            inbound = gen_inbound_reality(XUI_HOST, cls.api.session, BOT_NAME)
             cls.api.inbound.add(inbound=inbound)
             available_inbounds = cls.api.inbound.get_list()
-        cls._active_inbound_id = available_inbounds[0].id
-        return cls._active_inbound_id
+        cls._active_inbound = available_inbounds[0]
+        return cls._active_inbound
+    
+    @classmethod
+    def _generate_token(cls, x3_client_id: str, inbound: Inbound):
+        settings = inbound.stream_settings
+        reality = settings.reality_settings
+        reality_set = reality.get('settings', {})
+        pbk = reality_set.get('publicKey', "")
+        fp = reality_set.get('fingerprint', '')
+        fakehost = reality.get('serverNames', [''])[0]
+        sid = random.choice(reality.get('shortIds', ['']))
+        query = urlencode(dict(
+            type=settings.network,
+            security=settings.security,
+            pbk=pbk,
+            fp=fp,
+            sni=fakehost,
+            sid=sid
+        ))
+        token = f'vless://{x3_client_id}@{MACHINE_IP}:{inbound.port}?{query}#{BOT_NAME}'
+        #&sid=38&spx=%2F
+        return token
 
 
     @classmethod
@@ -120,16 +143,23 @@ class VLESS(VPN_Proto):
         key_id = randomstr(10, with_special = False)
         # Надо сгенерировать какой-нибудь id клиенту, чтоб мы не выглядели как ебланы, отдавая юзерам наши внутренние key_id
         # Поэтому ща хэшей насчитаем бля
-        seed = hashlib.sha256(key_id.encode('utf-8')).hexdigest()[:32]
-        user_id = str(uuid.UUID(seed, version=1))
+        seed = hashlib.sha256(key_id.encode('utf-8')).hexdigest()[:32] # Просто первые 32 символа hex хэша от key_id
+        user_id = str(uuid.UUID(seed, version=1)) # Генерируем UUID1 Не случайным образом, а на основе hex строки
         client = Client3x(
             email=key_id.lower(), # требование апи
             enable=True,
             id=user_id,
-            subId=key_id
+            subId=key_id,
+            flow= "",
+            limitIp= max_clients,
+            expiryTime=0,
+            tgId="",
+            reset= 0
         )
-        resp = cls.api.client.add(cls.activeinboundid(), [client])
-        token = f'vless://{user_id}@{MACHINE_IP}:4430?type=tcp&security=reality&pbk=&fp=random&sni=yahoo.com&sid=38&spx=%2F#{BOT_NAME}'
+        cls.api.login()
+        inbound = cls._activeinbound() 
+        resp = cls.api.client.add(inbound_id=inbound.id, clients=[client])
+        token = cls._generate_token(user_id, inbound)
         user = {
             "token": token,
             "_key_id": key_id,

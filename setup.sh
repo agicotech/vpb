@@ -1,8 +1,9 @@
-add-apt-repository ppa:deadsnakes/ppa -y
 apt update
 apt upgrade -y
 
-apt install git curl software-properties-common ca-certificates apt-transport-https -y
+apt install git curl gpg-agent software-properties-common ca-certificates apt-transport-https -y
+add-apt-repository ppa:deadsnakes/ppa -y
+apt update
 
 
 git clone https://github.com/simplycleverlol/vpb.git

@@ -1,4 +1,3 @@
-#!/bin/bash
 add-apt-repository ppa:deadsnakes/ppa -y
 apt update
 apt upgrade -y

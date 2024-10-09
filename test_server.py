@@ -12,7 +12,7 @@ import uuid
 from py3xui import Api as Api3x, Client as Client3x
 from py3xui import Inbound
 from inbound_generator import gen_inbound_reality
-
+from proto_detector import Proto_detector
 
 from consts import *
 from database import JsonDataBase
@@ -27,9 +27,11 @@ BOT_NAME = '@agicovpnbot '+ get_flag(MACHINE_IP)
 
 logger = logging.getLogger()
 logger.setLevel(20)
-
-Available_Protos = {"IKEv2", 'Outline', 'WireGuard', 'OpenVPN', 'VLESS'} #TODO: Сделать автоматический поиск установленных протоколов
+logger.addHandler(logging.StreamHandler())
+#Available_Protos = {"IKEv2", 'Outline', 'WireGuard', 'OpenVPN', 'VLESS'} #TODO: Сделать автоматический поиск установленных протоколов
 # здесь допишем автоматическое определение установленных на сервере протоколов как-нибудь потом
+Available_Protos = Proto_detector()()
+logger.info(f'Available protos: {Available_Protos}')
 
 class VPN_Proto():
     """Родительский класс для протоколов, уже сделан"""

@@ -32,6 +32,7 @@ logger.addHandler(logging.StreamHandler())
 # здесь допишем автоматическое определение установленных на сервере протоколов как-нибудь потом
 Available_Protos = Proto_detector()()
 logger.info(f'Available protos: {Available_Protos}')
+Available_protos_set = set(Available_Protos)
 
 class VPN_Proto():
     """Родительский класс для протоколов, уже сделан"""
@@ -326,7 +327,7 @@ class OpenVPN(WireGuard):
 
 Protos: Dict[str, VPN_Proto] = {"IKEv2" : IKEv2, "Outline": Outline, 'WireGuard': WireGuard, 'OpenVPN': OpenVPN, "VLESS": VLESS}
 PROTO_LIT = Literal["IKEv2", "Outline", 'WireGuard', 'OpenVPN', 'VLESS']
-PROTO_LIT = Literal[tuple(Available_Protos)]
+PROTO_LIT = Literal[Available_Protos]
 print(PROTO_LIT)
 
 class new_user(BaseModel):
@@ -366,13 +367,13 @@ def read_available_protos():
 @app.get("/{proto}/active_confs")
 def read_active_users(proto: PROTO_LIT):
     """Возвращает список активных пользователей"""
-    if not proto in Available_Protos:
+    if not proto in Available_protos_set:
         return {"error" : "This protocol is not imlemented on this server"}
     return Protos[proto].get_confs()
 
 @app.post("/{proto}/renew_conf")
 def renew_config(proto: PROTO_LIT, data: data_for_renewal):
-    if not proto in Available_Protos:
+    if not proto in Available_protos_set:
         return {"error" : "This protocol is not imlemented on this server"}
     
     return Protos[proto].renew_conf(data.key_id, data.renewal_time, data.max_clients)
@@ -384,7 +385,7 @@ def add_new_user(proto: PROTO_LIT, new_user_info: new_user):
     """Добавляет нового пользователя по пост запросу"""
 
     protocol = str(proto)
-    if not protocol in Available_Protos:
+    if not protocol in Available_protos_set:
         return {"error" : "This protocol is not imlemented on this server"}
     return Protos[protocol].generate_conf(expire_date = new_user_info.expire_date,
                                        max_clients = new_user_info.max_clients)
@@ -393,7 +394,7 @@ def add_new_user(proto: PROTO_LIT, new_user_info: new_user):
 def revoke_link(proto: PROTO_LIT, removal_info: key_for_removal):
     """Удаляет Аутлайн ключ по его айди"""
     protocol = str(proto)
-    if not protocol in Available_Protos:
+    if not protocol in Available_protos_set:
         return {"error" : "This protocol is not imlemented on this server"}
     key_id = removal_info.key_id
     return Protos[protocol].remove_key(key_id)

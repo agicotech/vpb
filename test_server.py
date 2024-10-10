@@ -325,7 +325,9 @@ class OpenVPN(WireGuard):
 
 
 Protos: Dict[str, VPN_Proto] = {"IKEv2" : IKEv2, "Outline": Outline, 'WireGuard': WireGuard, 'OpenVPN': OpenVPN, "VLESS": VLESS}
-proto_literal = Literal["IKEv2", "Outline", 'WireGuard', 'OpenVPN', 'VLESS']
+PROTO_LIT = Literal["IKEv2", "Outline", 'WireGuard', 'OpenVPN', 'VLESS']
+PROTO_LIT = Literal[tuple(Available_Protos)]
+print(PROTO_LIT)
 
 class new_user(BaseModel):
     """Класс для работы пост запроса создания нового пользователя"""
@@ -350,22 +352,26 @@ class data_for_renewal(BaseModel):
 
 #
 # app = FastAPI(docs_url=None, redoc_url=None)
-app = FastAPI()
+app = FastAPI(docs_url='/xxx/fuckingdogs', redoc_url='/yyy/redocsggg1')
 
 @app.exception_handler(404)
 async def handle_404(_, __):
         return RedirectResponse('https://www.youtube.com/watch?v=dQw4w9WgXcQ&pp=ygUIcmlja3JvbGw%3D')  
 
+@app.get("/protos")
+def read_available_protos():
+    """Возвращает список активных протоколов"""
+    return list(Available_Protos)
 
 @app.get("/{proto}/active_confs")
-def read_active_users(proto: proto_literal):
+def read_active_users(proto: PROTO_LIT):
     """Возвращает список активных пользователей"""
     if not proto in Available_Protos:
         return {"error" : "This protocol is not imlemented on this server"}
     return Protos[proto].get_confs()
 
 @app.post("/{proto}/renew_conf")
-def renew_config(proto: proto_literal, data: data_for_renewal):
+def renew_config(proto: PROTO_LIT, data: data_for_renewal):
     if not proto in Available_Protos:
         return {"error" : "This protocol is not imlemented on this server"}
     
@@ -374,7 +380,7 @@ def renew_config(proto: proto_literal, data: data_for_renewal):
 
 
 @app.post("/{proto}/generate_conf")
-def add_new_user(proto: proto_literal, new_user_info: new_user):
+def add_new_user(proto: PROTO_LIT, new_user_info: new_user):
     """Добавляет нового пользователя по пост запросу"""
 
     protocol = str(proto)
@@ -384,7 +390,7 @@ def add_new_user(proto: proto_literal, new_user_info: new_user):
                                        max_clients = new_user_info.max_clients)
 
 @app.post("/{proto}/revoke_key")
-def revoke_link(proto: proto_literal, removal_info: key_for_removal):
+def revoke_link(proto: PROTO_LIT, removal_info: key_for_removal):
     """Удаляет Аутлайн ключ по его айди"""
     protocol = str(proto)
     if not protocol in Available_Protos:
@@ -393,6 +399,5 @@ def revoke_link(proto: proto_literal, removal_info: key_for_removal):
     return Protos[protocol].remove_key(key_id)
 
 if __name__ == '__main__':
-    print('ss')
     uvicorn.run(app, host="0.0.0.0", port=1488, loop='none')
     # print(Outline_VPN.generate_conf(expire_date=100, max_clients=1))

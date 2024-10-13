@@ -9,6 +9,12 @@ from fastapi.responses import RedirectResponse
 import hashlib
 import uuid
 
+from fastapi import FastAPI, Request, Response, status
+import hashlib
+import os
+import re
+from consts import API_PASSWORD, API_USERNAME
+
 from py3xui import Api as Api3x, Client as Client3x
 from py3xui import Inbound
 from inbound_generator import gen_inbound_reality
@@ -399,6 +405,66 @@ def revoke_link(proto: PROTO_LIT, removal_info: key_for_removal):
     key_id = removal_info.key_id
     return Protos[protocol].remove_key(key_id)
 
+USERNAME = API_USERNAME
+PASSWORD = API_PASSWORD
+REALM = 'VPN'
+
+
+def generate_nonce():
+    return os.urandom(16).hex()
+
+def generate_opaque():
+    return os.urandom(16).hex()
+
+OPAQUE = generate_opaque()
+
+def parse_digest_auth(auth_header):
+    pattern = re.compile(r'(\w+)=("([^"]+)"|([^,]+))')
+    auth_dict = {}
+    for match in pattern.finditer(auth_header):
+        key = match.group(1)
+        value = match.group(3) or match.group(4)
+        auth_dict[key] = value
+    return auth_dict
+
+async def digest_authentication(request: Request, call_next):
+    auth_header = request.headers.get('Authorization')
+    if auth_header and auth_header.startswith('Digest '):
+        auth_info = auth_header[7:]
+        credentials = parse_digest_auth(auth_info)
+        if credentials.get('username') == USERNAME:
+            HA1_str = f"{USERNAME}:{REALM}:{PASSWORD}"
+            HA1 = hashlib.md5(HA1_str.encode()).hexdigest()
+
+            HA2_str = f"{request.method}:{credentials.get('uri')}"
+            HA2 = hashlib.md5(HA2_str.encode()).hexdigest()
+
+            response_str = f"{HA1}:{credentials.get('nonce')}:{credentials.get('nc')}:{credentials.get('cnonce')}:{credentials.get('qop')}:{HA2}"
+            valid_response = hashlib.md5(response_str.encode()).hexdigest()
+
+            if credentials.get('response') == valid_response:
+                response = await call_next(request)
+                return response
+    # Генерируем новый NONCE для каждого запроса аутентификации
+    NONCE = generate_nonce()
+    response = Response(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        headers={
+            'WWW-Authenticate': f'Digest realm="{REALM}",'
+                                f'nonce="{NONCE}",'
+                                f'opaque="{OPAQUE}",'
+                                f'qop="auth",'
+                                f'algorithm="MD5"'
+        }
+    )
+    return response
+
+app.middleware('http')(digest_authentication)
+
+
 if __name__ == '__main__':
-    uvicorn.run(app, host="0.0.0.0", port=1488, loop='none')
+    
+    uvicorn.run(app, host="0.0.0.0", port=1488, loop='none',
+                ssl_keyfile="./server.key",
+                ssl_certfile="./server.crt")
     # print(Outline_VPN.generate_conf(expire_date=100, max_clients=1))

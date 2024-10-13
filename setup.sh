@@ -65,6 +65,16 @@ echo XUI_PASSWORD="$VLESSPWD" >> .env
 chmod u+x *.sh
 
 cd vpb
+
+API_PASS=$(openssl rand -base64 33)
+echo API_PASSWORD="$API_PASS" >> .env
+
+ip=$(curl -s ifconfig.me)
+openssl req -x509 -newkey rsa:4096 -sha256 -days 3650 -nodes \
+  -keyout server.key -out server.crt -subj "/CN=$ip" \
+  -addext "subjectAltName=IP:$ip"
+
+
 apt-get -y install python3.11 python3-pip python3.11-venv lrzsz
 python3.11 -m venv venv
 
@@ -74,3 +84,5 @@ cp vpn_api.service /lib/systemd/system/
 systemctl daemon-reload
 systemctl start vpn_api.service
 systemctl enable vpn_api.service
+
+./venv/bin/python gen_config.py

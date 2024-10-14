@@ -13,7 +13,7 @@ def get_flag_and_city():
     try:
         res = res.json()
         city = res.get('city', "Default")
-        flags = countryflag.getflag([res.get('country', "")])
+        flags = countryflag.getflag([res.get('country', "")]).strip()
     except Exception as e:
         logging.warning('Today without a flag :(')
     return flags, city

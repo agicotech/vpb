@@ -29,7 +29,8 @@ from urllib.parse import urlencode
 from utils import *
 
 MACHINE_IP = my_ip()
-BOT_NAME = '@agicovpnbot '+ get_flag(MACHINE_IP)
+FLAG, CITY = get_flag_and_city()
+BOT_NAME = f'@agicovpnbot {CITY} {FLAG}'
 
 logger = logging.getLogger()
 logger.setLevel(20)

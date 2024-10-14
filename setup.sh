@@ -1,13 +1,26 @@
 apt update
-apt upgrade -y
-
-apt install git curl gpg-agent software-properties-common ca-certificates apt-transport-https -y
-add-apt-repository ppa:deadsnakes/ppa -y
-apt update
+apt-get remove cloud-init -y
+sh -c 'DEBIAN_FRONTEND=noninteractive apt-get upgrade -y'
+sh -c 'DEBIAN_FRONTEND=noninteractive apt-get install git curl gpg-agent apt-utils -y'
 
 curl https://get.docker.com/ | bash
 
+echo "Checking docker installation"
+if command -v docker &> /dev/null; then
+    echo "Docker installation found"
+else
+    echo "Docker installation not found. Please install docker."
+    exit 1
+fi
+
+add-apt-repository ppa:deadsnakes/ppa -y
+apt update
+
 git clone https://github.com/simplycleverlol/vpb.git
+
+cd vpb
+bash setup_adguard.sh
+cd ..
 
 wget https://get.vpnsetup.net -O vpn.sh && sudo sh vpn.sh
 wget -O wireguard.sh https://get.vpnsetup.net/wg && sudo bash wireguard.sh --auto
@@ -65,7 +78,6 @@ echo XUI_PASSWORD="$VLESSPWD" >> .env
 
 chmod u+x *.sh
 
-cd vpb
 
 API_PASS=$(openssl rand -base64 33)
 echo API_PASSWORD="$API_PASS" >> .env
@@ -75,6 +87,7 @@ openssl req -x509 -newkey rsa:4096 -sha256 -days 3650 -nodes \
   -keyout server.key -out server.crt -subj "/CN=$ip" \
   -addext "subjectAltName=IP:$ip"
 
+cd vpb
 
 apt-get -y install python3.11 python3-pip python3.11-venv lrzsz
 python3.11 -m venv venv

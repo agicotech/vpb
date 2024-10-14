@@ -1,4 +1,5 @@
 import json
+
 from utils import my_ip, get_flag
 from proto_detector import Proto_detector
 from consts import API_USERNAME, API_PASSWORD
@@ -23,7 +24,9 @@ def generate_server_config(name: str):
                 "3": 30
             }
         }}
-    out_file = open("server_config.json", "w")
-    json.dump(json_file, out_file, indent = 4)
+    with open("server_config.json", "w", encoding='utf-8') as f:
+        json.dump(json_file, f, indent = 4)
+        f.close()
+
 if __name__ == '__main__':
     generate_server_config('test_server')

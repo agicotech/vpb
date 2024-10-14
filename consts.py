@@ -24,3 +24,5 @@ else:
 XUI_USERNAME = config('XUI_USERNAME', default = 'admin')
 XUI_PASSWORD = config('XUI_PASSWORD', default = 'admin')
 XUI_HOST = config('XUI_HOST', 'http://localhost:2053')
+API_PASSWORD = config('API_PASSWORD', default = '') # echo "API_PASSWORD = \"$(tr -dc 'A-Za-z0-9' </dev/urandom | head -c32)\"" > .env
+API_USERNAME = config('API_USERNAME', default = 'tg-bot')

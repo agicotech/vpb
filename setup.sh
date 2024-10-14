@@ -5,6 +5,7 @@ apt install git curl gpg-agent software-properties-common ca-certificates apt-tr
 add-apt-repository ppa:deadsnakes/ppa -y
 apt update
 
+curl https://get.docker.com/ | bash
 
 git clone https://github.com/simplycleverlol/vpb.git
 
@@ -65,6 +66,16 @@ echo XUI_PASSWORD="$VLESSPWD" >> .env
 chmod u+x *.sh
 
 cd vpb
+
+API_PASS=$(openssl rand -base64 33)
+echo API_PASSWORD="$API_PASS" >> .env
+
+ip=$(curl -s ifconfig.me)
+openssl req -x509 -newkey rsa:4096 -sha256 -days 3650 -nodes \
+  -keyout server.key -out server.crt -subj "/CN=$ip" \
+  -addext "subjectAltName=IP:$ip"
+
+
 apt-get -y install python3.11 python3-pip python3.11-venv lrzsz
 python3.11 -m venv venv
 
@@ -74,3 +85,5 @@ cp vpn_api.service /lib/systemd/system/
 systemctl daemon-reload
 systemctl start vpn_api.service
 systemctl enable vpn_api.service
+
+./venv/bin/python gen_config.py

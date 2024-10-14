@@ -8,3 +8,4 @@ outline-vpn-api
 py3xui
 python-dotenv
 countryflag
+python-digest

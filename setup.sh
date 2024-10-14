@@ -5,6 +5,7 @@ apt install git curl gpg-agent software-properties-common ca-certificates apt-tr
 add-apt-repository ppa:deadsnakes/ppa -y
 apt update
 
+curl https://get.docker.com/ | bash
 
 git clone https://github.com/simplycleverlol/vpb.git
 

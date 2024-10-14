@@ -32,4 +32,4 @@ def generate_server_config():
         f.close()
 
 if __name__ == '__main__':
-    generate_server_config('test_server')
+    generate_server_config()

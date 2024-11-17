@@ -18,16 +18,16 @@ apt update
 
 git clone https://github.com/simplycleverlol/vpb.git
 
-cd vpb
-bash setup_adguard.sh
-cd ..
+#cd vpb
+#bash setup_adguard.sh
+#cd ..
 
-wget https://get.vpnsetup.net -O vpn.sh && sudo sh vpn.sh
+#wget https://get.vpnsetup.net -O vpn.sh && sudo sh vpn.sh
 wget -O wireguard.sh https://get.vpnsetup.net/wg && sudo bash wireguard.sh --auto
 wget -O openvpn.sh https://get.vpnsetup.net/ovpn && sudo bash openvpn.sh --auto
-wget -O add_vpn_user.sh https://raw.githubusercontent.com/hwdsl2/setup-ipsec-vpn/master/extras/add_vpn_user.sh
-wget -O del_vpn_user.sh https://raw.githubusercontent.com/hwdsl2/setup-ipsec-vpn/master/extras/del_vpn_user.sh
-wget -O ikev2.sh https://raw.githubusercontent.com/hwdsl2/setup-ipsec-vpn/master/extras/ikev2setup.sh 
+#wget -O add_vpn_user.sh https://raw.githubusercontent.com/hwdsl2/setup-ipsec-vpn/master/extras/add_vpn_user.sh
+#wget -O del_vpn_user.sh https://raw.githubusercontent.com/hwdsl2/setup-ipsec-vpn/master/extras/del_vpn_user.sh
+#wget -O ikev2.sh https://raw.githubusercontent.com/hwdsl2/setup-ipsec-vpn/master/extras/ikev2setup.sh 
 
 iptables -I INPUT -p tcp --dport 443  -j ACCEPT
 iptables -I INPUT -p tcp --dport 8080  -j ACCEPT
@@ -82,7 +82,7 @@ chmod u+x *.sh
 API_PASS=$(openssl rand -base64 33)
 echo API_PASSWORD="$API_PASS" >> .env
 
-ip=$(curl -s ifconfig.me)
+ip=$(curl -s4 ifconfig.me)
 openssl req -x509 -newkey rsa:4096 -sha256 -days 3650 -nodes \
   -keyout server.key -out server.crt -subj "/CN=$ip" \
   -addext "subjectAltName=IP:$ip"

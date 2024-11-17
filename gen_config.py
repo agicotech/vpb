@@ -13,8 +13,6 @@ def generate_server_config():
             "name": CITY,
             "location": NAME,
             "ip": ip,
-            "active_clients": 0,
-            "protos": Proto_detector()(),
             "auth": {
                 "login": API_USERNAME,
                 "password": API_PASSWORD

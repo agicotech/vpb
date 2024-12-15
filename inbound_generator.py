@@ -11,11 +11,11 @@ def generate_sids():
     seed = random.randbytes(30)
     sha = hashlib.sha256(seed).hexdigest()
     def get_sid():
-        l = random.randint(1, 8)*2
+        l = random.randint(4, 8)*2
         start = random.randint(0, len(sha)-1-l)
         return sha[start:start+l]
 
-    sids = [get_sid() for _ in range(10)]
+    sids = [get_sid() for _ in range(16)]
     return sids
 
 def get_cert(host: str, session: str) -> dict:
@@ -49,10 +49,10 @@ def gen_inbound_reality(host, session, tag = ''):
     realitySettings = {
         "show": False,
         "xver": 0,
-        "dest": "yahoo.com:443",
+        "dest": "wikipedia.com:443",
         "serverNames": [
-                    "yahoo.com",
-                    "www.yahoo.com"
+                    "wikipedia.com",
+                    "www.wikipedia.com"
                         ],
 
         'privateKey': cert.get('privateKey', ''),

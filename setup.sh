@@ -23,8 +23,8 @@ git clone https://github.com/simplycleverlol/vpb.git
 #cd ..
 
 #wget https://get.vpnsetup.net -O vpn.sh && sudo sh vpn.sh
-wget -O wireguard.sh https://get.vpnsetup.net/wg && sudo bash wireguard.sh --auto
-wget -O openvpn.sh https://get.vpnsetup.net/ovpn && sudo bash openvpn.sh --auto
+wget -O wireguard.sh https://get.vpnsetup.net/wg && sudo bash wireguard.sh --dns1 94.140.14.14 --dns2 94.140.15.15 --auto
+wget -O openvpn.sh https://get.vpnsetup.net/ovpn && sudo bash openvpn.sh --dns1 94.140.14.14 --dns2 94.140.15.15 --auto
 #wget -O add_vpn_user.sh https://raw.githubusercontent.com/hwdsl2/setup-ipsec-vpn/master/extras/add_vpn_user.sh
 #wget -O del_vpn_user.sh https://raw.githubusercontent.com/hwdsl2/setup-ipsec-vpn/master/extras/del_vpn_user.sh
 #wget -O ikev2.sh https://raw.githubusercontent.com/hwdsl2/setup-ipsec-vpn/master/extras/ikev2setup.sh 
@@ -34,7 +34,7 @@ iptables -I INPUT -p tcp --dport 8080  -j ACCEPT
 iptables -I INPUT -p tcp --dport 1488  -j ACCEPT
 iptables-save > /etc/iptables.rules
 
-echo DNS=8.8.8.8#dns.google 8.8.4.4#dns.google 2001:4860:4860::8888#dns.google 2001:4860:4860::8844#dns.google >> /etc/systemd/resolved.conf
+echo DNS=94.140.15.15#dns.adguard 94.140.14.14#dns.adguard 2a10:50c0::ad1:ff#dns.adguard 2a10:50c0::ad2:ff#dns.adguard >> /etc/systemd/resolved.conf
 echo FallbackDNS=1.1.1.1#cloudflare-dns.com 1.0.0.1#cloudflare-dns.com 2606:4700:4700::1111#cloudflare-dns.com 2606:4700:4700::1001#cloudflare-dns.com >> /etc/systemd/resolved.conf
 service systemd-resolved restart
 

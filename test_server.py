@@ -104,7 +104,6 @@ class IKEv2(VPN_Proto):
         else:
             return False
     
-# NEW HERE  NEW HERE  NEW HERE  NEW HERE  NEW HERE  NEW HERE  NEW HERE  NEW HERE  NEW HERE  NEW HERE 
 class VLESS(VPN_Proto):
     clients = JsonDataBase('db_clients_VLESS')
     clients.load()
@@ -199,18 +198,6 @@ class VLESS(VPN_Proto):
             if not(client_exp > time.time() or client_exp == 0):
                 cls.clients.pop(name, None)
         return cls.clients.data
-
-
-
-# NEW HERE  NEW HERE  NEW HERE  NEW HERE  NEW HERE  NEW HERE  NEW HERE  NEW HERE  NEW HERE  NEW HERE 
-
-
-'''client = clients.touch(user.id, 
-                  full_name = user.full_name,
-                  username = user.username,
-                  balance = balance - price)     референс поступающих данных (дикт)'''
-
-
 
 
 class Outline(VPN_Proto):
@@ -365,6 +352,11 @@ app = FastAPI(docs_url='/xxx/fuckingdogs', redoc_url='/yyy/redocsggg1')
 @app.exception_handler(404)
 async def handle_404(_, __):
         return RedirectResponse('https://www.youtube.com/watch?v=dQw4w9WgXcQ&pp=ygUIcmlja3JvbGw%3D')  
+
+@app.get("/ping")
+def ping_processor():
+    """Люблю собраться за уютной игрой в настольный пенис"""
+    return "pong"
 
 @app.get("/protos")
 def read_available_protos():

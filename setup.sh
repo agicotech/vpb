@@ -16,7 +16,7 @@ fi
 add-apt-repository ppa:deadsnakes/ppa -y
 apt update
 
-git clone https://github.com/simplycleverlol/vpb.git
+git clone https://github.com/agicotech/vpb.git
 
 #cd vpb
 #bash setup_adguard.sh

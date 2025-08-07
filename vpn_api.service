@@ -1,14 +1,20 @@
 [Unit]
-Description= Vpn Backend
+Description=Vpn Backend
+After=network.target
+Wants=network-online.target
+After=network-online.target
 
 [Service]
+Type=simple
 User=root
 WorkingDirectory=/root/
-VIRTUAL_ENV=/root/vpb/venv
-Environment=PATH=$VIRTUAL_ENV/bin:$PATH
+Environment="VIRTUAL_ENV=/root/vpb/venv"
+Environment="PATH=/root/vpb/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+ExecStartPre=/bin/sleep 30
 ExecStart=/root/vpb/venv/bin/python vpb/test_server.py
 Restart=always
 RestartSec=5
 RuntimeMaxSec=5d
+
 [Install]
 WantedBy=multi-user.target

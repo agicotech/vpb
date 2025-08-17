@@ -1,32 +1,32 @@
-import random
-from fastapi import FastAPI
-import uvicorn
-from pydantic import BaseModel
-from typing import Dict, Optional, Literal
-import random
-from outline_vpn.outline_vpn import OutlineVPN
-from fastapi.responses import RedirectResponse
+# Standard library imports
 import hashlib
+import logging
+import os
+import random
+import re
+import subprocess
+import time
 import uuid
 
+# Third-party imports
 from fastapi import FastAPI, Request, Response, status
-import hashlib
-import os
-import re
-from consts import API_PASSWORD, API_USERNAME
+from fastapi.responses import RedirectResponse
+from outline_vpn.outline_vpn import OutlineVPN
+from pydantic import BaseModel
+from requests import get
+from typing import Dict, Literal, Optional
+from urllib.parse import urlencode
+import uvicorn
+import threading
+import schedule
 
-from py3xui import Api as Api3x, Client as Client3x
-from py3xui import Inbound
+# Local application imports
+from consts import API_PASSWORD, API_USERNAME, OUTLINE_API, OUTLINE_SHA, XUI_HOST, XUI_PASSWORD, XUI_USERNAME
+from database import JsonDataBase
 from inbound_generator import gen_inbound_reality
 from proto_detector import Proto_detector
-
-from consts import *
-from database import JsonDataBase
-import time
-import os, subprocess
-from requests import get
-from urllib.parse import urlencode
-from utils import *
+from py3xui import Api as Api3x, Client as Client3x, Inbound
+from utils import my_ip, get_flag_and_city, randomstr
 
 MACHINE_IP = my_ip()
 FLAG, CITY = get_flag_and_city()
@@ -45,8 +45,29 @@ class VPN_Proto():
     """Родительский класс для протоколов, уже сделан"""
     clients: JsonDataBase
     def generate_conf(expire_date: int, max_clients: int) -> dict: ...
-    def get_confs() -> dict: ...
     def remove_key(key_id: str):...
+    
+    @classmethod
+    def get_confs(cls) -> dict:
+        """Стандартный метод получения конфигураций"""
+        return cls.clients.data
+    
+    @classmethod
+    def clean_expired_keys(cls, days_threshold: int = 1):
+        """Очистка ключей, просроченных более чем на указанное количество дней"""
+        current_time = time.time()
+        day_seconds = 86400  # количество секунд в дне
+        threshold_time = current_time - (days_threshold * day_seconds)
+        
+        names = list(cls.clients.keys())
+        for name in names:
+            client_exp = int(cls.clients[name]['_exp'])
+            # Проверяем, что ключ не вечный (exp != 0) и просрочен более чем на days_threshold дней
+            if client_exp != 0 and client_exp < threshold_time:
+                cls.remove_key(name)
+        
+        return True
+    
     @classmethod
     def renew_conf(cls, key_id: str, renewal_time: int, max_clients: int):
         if not key_id in cls.clients:
@@ -54,6 +75,7 @@ class VPN_Proto():
         cls.clients[key_id]['_exp'] += renewal_time
         cls.clients.save()
         return True
+    
     @classmethod
     def save_user(cls, user: dict):
         cls.clients[user['_key_id']] = user
@@ -89,12 +111,7 @@ class IKEv2(VPN_Proto):
         return user
     @classmethod
     def get_confs(cls) -> dict:
-        names = list(cls.clients.keys())
-        for name in names:
-            client_exp = int(cls.clients[name]['_exp'])
-            if not(client_exp > time.time() or client_exp == 0):
-                cls.clients.pop(name, None)
-        return cls.clients.data
+        return super().get_confs()
     @classmethod
     def remove_key(cls, key_id: str):
         if cls.clients.pop(key_id, None) is not None:
@@ -192,12 +209,7 @@ class VLESS(VPN_Proto):
             return False
     @classmethod
     def get_confs(cls) -> dict:
-        names = list(cls.clients.keys())
-        for name in names:
-            client_exp = int(cls.clients[name]['_exp'])
-            if not(client_exp > time.time() or client_exp == 0):
-                cls.clients.pop(name, None)
-        return cls.clients.data
+        return super().get_confs()
 
 
 class Outline(VPN_Proto):
@@ -229,12 +241,7 @@ class Outline(VPN_Proto):
             return False
     @classmethod
     def get_confs(cls) -> dict:
-        names = list(cls.clients.keys())
-        for name in names:
-            client_exp = int(cls.clients[name]['_exp'])
-            if not(client_exp > time.time() or client_exp == 0):
-                cls.clients.pop(name, None)
-        return cls.clients.data
+        return super().get_confs()
 
 def file_attachment(filename):
     with open(filename, 'rb') as f:
@@ -275,12 +282,7 @@ class WireGuard(VPN_Proto):
     
     @classmethod
     def get_confs(cls) -> dict:
-        names = list(cls.clients.keys())
-        for name in names:
-            client_exp = int(cls.clients[name]['_exp'])
-            if not(client_exp > time.time() or client_exp == 0):
-                cls.remove_key(name)
-        return cls.clients.data
+        return super().get_confs()
 
 class OpenVPN(WireGuard):
     clients = JsonDataBase('db_clients_OpenVPN')
@@ -455,9 +457,34 @@ async def digest_authentication(request: Request, call_next):
 app.middleware('http')(digest_authentication)
 
 
-if __name__ == '__main__':
+# Функция для запуска периодической очистки просроченных ключей
+def run_scheduler():
+    """Запускает планировщик для периодической очистки просроченных ключей"""
+    def clean_all_expired_keys():
+        """Очищает просроченные ключи для всех протоколов"""
+        logger.info("Запуск ежедневной очистки просроченных ключей...")
+        for proto_name, proto_class in Protos.items():
+            try:
+                logger.info(f"Очистка просроченных ключей для протокола {proto_name}")
+                proto_class.clean_expired_keys(days_threshold=1)
+            except Exception as e:
+                logger.error(f"Ошибка при очистке ключей для протокола {proto_name}: {str(e)}")
+        logger.info("Ежедневная очистка просроченных ключей завершена")
+
+    # Планируем запуск очистки каждый день в 3:00 ночи
+    schedule.every().day.at("03:00").do(clean_all_expired_keys)
     
+    # Запускаем планировщик в отдельном потоке
+    while True:
+        schedule.run_pending()
+        time.sleep(60)  # Проверяем расписание каждую минуту
+
+if __name__ == '__main__':
+    # Запускаем планировщик в отдельном потоке
+    scheduler_thread = threading.Thread(target=run_scheduler, daemon=True)
+    scheduler_thread.start()
+    
+    # Запускаем сервер FastAPI
     uvicorn.run(app, host="0.0.0.0", port=1488, loop='none',
                 ssl_keyfile="./server.key",
                 ssl_certfile="./server.crt")
-    # print(Outline_VPN.generate_conf(expire_date=100, max_clients=1))

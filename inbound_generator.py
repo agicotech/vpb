@@ -21,19 +21,19 @@ def generate_sids():
 def get_cert(host: str, session: str) -> dict:
     host = host.strip('/')
     headers = {
-    "Accept": "application/json, text/plain, */*",
-    "Content-Type":"application/x-www-form-urlencoded; charset=UTF-8",
-    "Cookie": f"lang=en-US; 3x-ui={session}"
+        "Accept": "application/json, text/plain, */*",
+        "Cookie": f"lang=en-US; 3x-ui={session}",
+        "X-Requested-With": "XMLHttpRequest",
     }
-    resp = requests.post(f'{host}/server/getNewX25519Cert', headers=headers)
+    resp = requests.get(f'{host}/panel/api/server/getNewX25519Cert', headers=headers)
     if resp.status_code == 200:
         resp = resp.json()
     else:
-        logging.warning(f'Troubles to reach a cert: {resp.status_code}')
+        logging.warning(f'Troubles to reach a cert: {resp.status_code} {resp.text}')
         return {}
-    return resp.get('obj')
+    return resp.get('obj', {})
 
-def gen_inbound_reality(host, session, tag = ''):
+def gen_inbound_reality(host, session, tag = '', target = 'wikipedia.com:443'):
     tcp_settings = {
     "acceptProxyProtocol": False,
     "header": {"type": "none"},
@@ -46,13 +46,15 @@ def gen_inbound_reality(host, session, tag = ''):
     settings = Settings(decryption="none", clients=clients)
     sniffing = Sniffing(enabled=True)
     cert = get_cert(host, session)
+    # Derive host part from target (strip port) for serverNames
+    target_host = target.split(':')[0]
     realitySettings = {
         "show": False,
         "xver": 0,
-        "dest": "wikipedia.com:443",
+        "dest": target,
         "serverNames": [
-                    "wikipedia.com",
-                    "www.wikipedia.com"
+                    target_host,
+                    f"www.{target_host}"
                         ],
 
         'privateKey': cert.get('privateKey', ''),

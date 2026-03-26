@@ -143,7 +143,7 @@ class VLESS(VPN_Proto):
         return cls._active_inbound
     
     @classmethod
-    def _generate_token(cls, x3_client_id: str, inbound: Inbound):
+    def _generate_token(cls, x3_client_id: str, inbound: Inbound, flow: str = "xtls-rprx-vision"):
         settings = inbound.stream_settings
         reality = settings.reality_settings
         reality_set = reality.get('settings', {})
@@ -151,16 +151,18 @@ class VLESS(VPN_Proto):
         fp = reality_set.get('fingerprint', '')
         fakehost = reality.get('serverNames', [''])[0]
         sid = random.choice(reality.get('shortIds', ['']))
-        query = urlencode(dict(
+        params = dict(
             type=settings.network,
             security=settings.security,
             pbk=pbk,
             fp=fp,
             sni=fakehost,
             sid=sid
-        ))
+        )
+        if flow:
+            params['flow'] = flow
+        query = urlencode(params)
         token = f'vless://{x3_client_id}@{MACHINE_IP}:{inbound.port}?{query}#{BOT_NAME}'
-        #&sid=38&spx=%2F
         return token
 
 
@@ -176,7 +178,7 @@ class VLESS(VPN_Proto):
             enable=True,
             id=user_id,
             subId=key_id,
-            flow= "",
+            flow="xtls-rprx-vision",
             limitIp= max_clients,
             expiryTime=0,
             tgId="",

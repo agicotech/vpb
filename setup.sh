@@ -28,6 +28,13 @@ git clone https://github.com/agicotech/vpb.git
 #bash setup_adguard.sh
 #cd ..
 
+USE_PROXY=$1
+
+if ["$USE_PROXY" != ""] ; then
+    touch "proxy.sh"
+fi
+
+
 #wget https://get.vpnsetup.net -O vpn.sh && sudo sh vpn.sh
 wget -O wireguard.sh https://get.vpnsetup.net/wg && sudo bash wireguard.sh --dns1 94.140.14.14 --dns2 94.140.15.15 --auto
 wget -O openvpn.sh https://get.vpnsetup.net/ovpn && sudo bash openvpn.sh --dns1 94.140.14.14 --dns2 94.140.15.15 --auto

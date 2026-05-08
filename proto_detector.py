@@ -18,6 +18,8 @@ class Proto_detector:
                     pr = method.__func__()
                     if pr:
                         yield pr
+        if os.path.exists('./proxy.sh'):
+            return tuple("VLESS")
         return tuple(check())
 
     @classmethod

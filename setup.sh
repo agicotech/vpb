@@ -28,9 +28,26 @@ git clone https://github.com/agicotech/vpb.git
 #bash setup_adguard.sh
 #cd ..
 
-USE_PROXY=$1
 
-if ["$USE_PROXY" != ""] ; then
+VPS_VLESS_URL="${VPS_VLESS_URL:-}"
+BE_PROXY="${BE_PROXY:-}"
+
+die()  { printf '\n[%s] ERROR: %s\n' "$(date +%H:%M:%S)" "$*" >&2; exit 1; }
+
+while [[ $# -gt 0 ]]; do
+case "$1" in
+    --vless-url)
+    [[ $# -ge 2 ]] || die "Missing value after --vless-url"
+    VPS1_VLESS_URL="$2"; shift 2 ;;
+    --be-proxy)
+    [[ $# -ge 2 ]] || die "Missing value after --be-proxy"
+    BE_PROXY="$2"; shift 2 ;;
+    *)
+    die "Unknown argument: $1" ;;
+esac
+done
+
+if [ -n "$BE_PROXY" ]; then
     touch "proxy.sh"
 fi
 
